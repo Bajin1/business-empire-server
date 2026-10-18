@@ -1252,6 +1252,23 @@ function broadcastStateDebounced(){
 }
 function appliquerEtatComplet(st){
   if(!st||!st.players)return;
+
+  // --- AJOUT : Basculer sur le plateau si on est encore sur l'écran d'attente ---
+  var app = document.getElementById('app');
+  var setup = document.getElementById('setup');
+  if (setup && setup.style.display !== 'none') {
+      setup.style.display = 'none';
+  }
+  // On vérifie si le plateau n'est pas déjà affiché (si l'app contient le texte d'attente)
+  if (app && app.innerHTML.indexOf('En attente du lancement') !== -1) {
+      // On recrée l'interface du jeu
+      location.reload(); // Solution radicale : on recharge la page, le serveur renverra l'état
+  }
+  // -------------------------------------------------------------------------------
+  
+  S.players=st.players.map(function(sp){
+// ... suite de votre code ...
+  if(!st||!st.players)return;
   S.players=st.players.map(function(sp){
     return {
       name:sp.name,color:sp.color,money:sp.money,pos:sp.pos,
