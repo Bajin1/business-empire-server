@@ -1277,8 +1277,11 @@ function appliquerEtatComplet(st){
   }
 
   refreshBoard();updatePanel();
-  var cur=S.players[S.current];
-  if(cur)document.getElementById('turnLabel').textContent='Tour de '+cur.name;
+   var cur=S.players[S.current];
+  if(cur){
+    var turnLbl = document.getElementById('turnLabel');
+    if(turnLbl) turnLbl.textContent = 'Tour de ' + cur.name;
+  }
   var eb=document.getElementById('endTurnBtn');
   if(eb)eb.disabled=!((S.current===WS.myIndex)&&!S.gameOver&&cur&&!cur.isAI);
   showCenterDice();
