@@ -1253,22 +1253,15 @@ function broadcastStateDebounced(){
 function appliquerEtatComplet(st){
   if(!st||!st.players)return;
 
-  // --- AJOUT : Basculer sur le plateau si on est encore sur l'écran d'attente ---
+  // --- CORRECTION : Basculer sur le plateau si on est encore sur l'écran d'attente ---
   var app = document.getElementById('app');
-  var setup = document.getElementById('setup');
-  if (setup && setup.style.display !== 'none') {
-      setup.style.display = 'none';
-  }
-  // On vérifie si le plateau n'est pas déjà affiché (si l'app contient le texte d'attente)
   if (app && app.innerHTML.indexOf('En attente du lancement') !== -1) {
-      // On recrée l'interface du jeu
-      location.reload(); // Solution radicale : on recharge la page, le serveur renverra l'état
+      // On recharge la page : le serveur renverra l'état et le jeu s'affichera
+      location.reload(); 
+      return; 
   }
-  // -------------------------------------------------------------------------------
-  
-  S.players=st.players.map(function(sp){
-// ... suite de votre code ...
-  if(!st||!st.players)return;
+  // ----------------------------------------------------------------------------------
+
   S.players=st.players.map(function(sp){
     return {
       name:sp.name,color:sp.color,money:sp.money,pos:sp.pos,
@@ -1276,6 +1269,7 @@ function appliquerEtatComplet(st){
       bankrupt:!!sp.bankrupt,isRemote:!!sp.isRemote,prudence:sp.prudence||3
     };
   });
+  
   st.board.forEach(function(sb,i){
     if(BOARD[i]){
       BOARD[i].owner=sb.owner;
@@ -1283,6 +1277,7 @@ function appliquerEtatComplet(st){
       BOARD[i].hypotheque=sb.hypotheque;
     }
   });
+  
   S.current=st.current;S.gameOver=st.gameOver;
   S.heritagePot=st.heritagePot;S.social1Pot=st.social1Pot||0;
   S.mode=st.mode||S.mode;S.doubleCount=st.doubleCount||0;
@@ -1294,11 +1289,12 @@ function appliquerEtatComplet(st){
   }
 
   refreshBoard();updatePanel();
-   var cur=S.players[S.current];
+  var cur=S.players[S.current];
   if(cur){
     var turnLbl = document.getElementById('turnLabel');
     if(turnLbl) turnLbl.textContent = 'Tour de ' + cur.name;
   }
+  
   var eb=document.getElementById('endTurnBtn');
   if(eb)eb.disabled=!((S.current===WS.myIndex)&&!S.gameOver&&cur&&!cur.isAI);
   showCenterDice();
