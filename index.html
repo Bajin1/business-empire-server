@@ -1253,6 +1253,49 @@ function broadcastStateDebounced(){
 function appliquerEtatComplet(st){
   if(!st||!st.players)return;
 
+  // --- CORRECTION : Basculer sur le plateau sans recharger la page ---
+  var app = document.getElementById('app');
+  if (app && app.innerHTML.indexOf('En attente du lancement') !== -1) {
+      // On remet l'interface de jeu normale
+      app.innerHTML = `
+        <div id="mainRow">
+          <div id="board">
+            <div id="ownersLayer"></div>
+            <div id="center">
+              <h1>BUSINESS</h1><h1>EMPIRE</h1><h2>« Bâtissez votre légende »</h2>
+              <div id="centerDice">
+                <div class="dieScene" id="cd1" onclick="lancerDesHumains()"><div class="dieViewer"><div class="dieCube" id="cd1Cube"></div></div></div>
+                <div class="dieScene" id="cd2" onclick="lancerDesHumains()"><div class="dieViewer"><div class="dieCube" id="cd2Cube"></div></div></div>
+              </div>
+              <div id="centerMoney"></div><div id="payBubble"></div><div id="starsShower"></div><div id="confetti"></div>
+              <div id="roueOverlay"><div id="roueBox"><div class="roueArrow">▼</div><svg id="roueSvg" viewBox="-110 -110 220 220"></svg><div class="roueCenter">💹</div></div><div id="roueResultat"></div></div>
+            </div>
+          </div>
+          <div id="panel">
+            <div class="box"><div id="turnLabel">-</div></div>
+            <div class="box" id="players"></div>
+            <div class="box" id="passerBox"><button id="endTurnBtn" class="passerBtn" onclick="passerTour()" disabled>⏭️ PASSER</button></div>
+            <div class="box" id="actionBar">
+              <button class="buildBtn" onclick="menuFiliales()">🏢 Filiale</button>
+              <button class="sellBtn" onclick="menuVenteFiliale()">🏚️ Vendre</button>
+              <button class="sellBtn" style="background:linear-gradient(180deg,#c62828,#8e0000)" onclick="menuHypotheque()">💰 Hypothéquer</button>
+              <button class="sellBtn" style="background:linear-gradient(180deg,#0277bd,#01579b)" onclick="menuLeverHypotheque()">🔓 Lever</button>
+              <button class="buildBtn" style="background:linear-gradient(180deg,#7b1fa2,#4a0072)" onclick="menuEchanges()">🤝 Échange</button>
+              <button class="buildBtn" style="background:linear-gradient(180deg,#0288d1,#01579b)" onclick="menuReseau()">🌐 Réseau</button>
+              <button class="ghost" style="grid-column:1/-1;font-size:12px;padding:10px;background:linear-gradient(180deg,#c62828,#8e0000);color:#fff;font-weight:800" onclick="quitterPartie()">🚪 Quitter la partie</button>
+            </div>
+          </div>
+        </div>`;
+      
+      // On doit recréer les dés
+      if(typeof initDice === 'function') initDice();
+      if(typeof construireRoueSVG === 'function') construireRoueSVG();
+  }
+  // ---------------------------------------------------------------------
+
+  S.players=st.players.map(function(sp){
+    // ... (le reste de la fonction reste identique, ne touchez pas à la suite)
+
   // --- CORRECTION : Basculer sur le plateau si on est encore sur l'écran d'attente ---
   var app = document.getElementById('app');
   if (app && app.innerHTML.indexOf('En attente du lancement') !== -1) {
