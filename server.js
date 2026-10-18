@@ -4,14 +4,16 @@
 // ============================================================
 const http = require('http');
 const WebSocket = require('ws');
+const fs = require('fs');
+const path = require('path'); // Ajouté pour gérer les chemins de fichiers
 
 const PORT = process.env.PORT || 10000;
 
 // ------------------------------------------------------------
-// Serveur HTTP minimal (Render exige un serveur HTTP)
+// Serveur HTTP (Sert le site web ET gère l'endpoint de santé)
 // ------------------------------------------------------------
 const server = http.createServer((req, res) => {
-  // Endpoint de santé pour éviter que Render endorme le service
+  // 1. Endpoint de santé pour éviter que Render endorme le service
   if (req.url === '/health' || req.url === '/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -23,12 +25,49 @@ const server = http.createServer((req, res) => {
     }));
     return;
   }
-  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end('🟢 Business Empire WebSocket Server is running.\n');
+
+  // 2. Gestion des fichiers statiques (HTML, CSS, JS, images, etc.)
+  // Si l'utilisateur visite la racine, on lui donne index.html
+  let filePath = req.url === '/' ? '/index.html' : req.url;
+  filePath = path.join(__dirname, filePath);
+
+  // Détecter le type de fichier pour que le navigateur l'affiche correctement
+  const extname = String(path.extname(filePath)).toLowerCase();
+  const mimeTypes = {
+    '.html': 'text/html',
+    '.js': 'text/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.wav': 'audio/wav',
+    '.mp3': 'audio/mpeg',
+    '.ico': 'image/x-icon'
+  };
+  const contentType = mimeTypes[extname] || 'application/octet-stream';
+
+  // 3. Lire et envoyer le fichier
+  fs.readFile(filePath, (error, content) => {
+    if (error) {
+      if (error.code === 'ENOENT') {
+        // Si le fichier n'existe pas (ex: favicon.ico manquant)
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Erreur 404 : Fichier non trouvé.');
+      } else {
+        res.writeHead(500);
+        res.end('Erreur serveur : ' + error.code);
+      }
+    } else {
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(content, 'utf-8');
+    }
+  });
 });
 
 // ------------------------------------------------------------
-// Serveur WebSocket
+// Serveur WebSocket (Votre logique de jeu intacte)
 // ------------------------------------------------------------
 const wss = new WebSocket.Server({ server });
 
