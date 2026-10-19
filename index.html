@@ -1296,15 +1296,6 @@ function appliquerEtatComplet(st){
   S.players=st.players.map(function(sp){
     // ... (le reste de la fonction reste identique, ne touchez pas à la suite)
 
-  // --- CORRECTION : Basculer sur le plateau si on est encore sur l'écran d'attente ---
-  var app = document.getElementById('app');
-  if (app && app.innerHTML.indexOf('En attente du lancement') !== -1) {
-      // On recharge la page : le serveur renverra l'état et le jeu s'affichera
-      location.reload(); 
-      return; 
-  }
-  // ----------------------------------------------------------------------------------
-
   S.players=st.players.map(function(sp){
     return {
       name:sp.name,color:sp.color,money:sp.money,pos:sp.pos,
@@ -1603,20 +1594,45 @@ async function lancerEnchere(declencheur, propriete) {
   refreshBoard();
   if (WS.isHost) broadcastState();
 }
-  async function traiterAtterrissage(p,cell){
+ async function traiterAtterrissage(p,cell){
   var idx=S.players.indexOf(p);
-  if(cell.type==='property'&&cell.owner==null&&p.money>=cell.price){
-    p.money-=cell.price;cell.owner=idx;
-    playBuySound();
-    await showMoney(-cell.price,'Achat : '+cell.name);
-  }else if(cell.type==='property'&&cell.owner!=null&&cell.owner!==idx){
+
+  // --- CAS PROPRIÉTÉ LIBRE ---
+  if(cell.type==='property' && cell.owner==null){
+    if(S.mode==='auction'){
+      // Mode enchères : on lance l'enchère
+      await lancerEnchere(p, cell);
+    } else {
+      // Mode achat libre : achat direct si assez d'argent
+      if(p.money>=cell.price){
+        p.money-=cell.price;
+        cell.owner=idx;
+        playBuySound();
+        await showMoney(-cell.price,'Achat : '+cell.name);
+      } else {
+        await showModal(
+          '<h2>💸 Fonds insuffisants</h2><p>Vous n\'avez pas assez pour <b>'+cell.name+'</b> ('+fmt(cell.price)+').</p>',
+          [{label:'OK',value:'ok',cls:'primary'}]
+        );
+      }
+    }
+    return;
+  }
+
+  // --- CAS PROPRIÉTÉ DÉJÀ POSSÉDÉE ---
+  if(cell.type==='property' && cell.owner!=null && cell.owner!==idx){
     var r2=rent(cell);
     if(r2>0){
-      p.money-=r2;S.players[cell.owner].money+=r2;
+      p.money-=r2;
+      S.players[cell.owner].money+=r2;
       playBadSound();
       await showPayment(p.name,S.players[cell.owner].name,r2);
     }
-  }else if(cell.type==='tax'){
+    return;
+  }
+
+  // --- AUTRES CAS ---
+  if(cell.type==='tax'){
     p.money-=cell.amount;playBadSound();
     await showMoney(-cell.amount,'Impôts');
   }else if(cell.type==='go'){
