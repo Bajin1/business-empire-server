@@ -1503,7 +1503,107 @@ function showCenterDice(){var el=document.getElementById('centerDice');if(el)el.
 /* ============================================================
    ATTERRISSAGE + DO ROLL + NEXT TURN
    ============================================================ */
-async function traiterAtterrissage(p,cell){
+/* ============================================================
+   ENCHÈRES
+   ============================================================ */
+async function lancerEnchere(declencheur, propriete) {
+  var pos = BOARD.indexOf(propriete);
+  var miseMin = Math.floor(propriete.price / 2);
+  var participants = S.players.filter(function(pl){
+    return pl && !pl.bankrupt && pl.money >= miseMin;
+  });
+
+  if (participants.length === 0) {
+    logEvent('INFO', 'Enchère annulée : aucun participant solvable.');
+    return;
+  }
+
+  // Version simplifiée : l'enchère se joue uniquement avec les joueurs humains locaux.
+  // Les IA font une offre automatique basée sur leur prudence.
+  // Les joueurs distants (WS) ne participent pas encore à l'enchère en temps réel.
+
+  var miseActuelle = miseMin;
+  var dernierEncherisseur = null;
+  var encherisseurIdx = 0;
+  var toursSansEnchere = 0;
+  var ordre = participants.slice();
+
+  // Boucle d'enchère simplifiée
+  while (toursSansEnchere < ordre.length) {
+    var joueur = ordre[encherisseurIdx % ordre.length];
+    var idxJ = S.players.indexOf(joueur);
+
+    // IA : décide automatiquement
+    if (joueur.isAI) {
+      var maxIA = Math.floor(propriete.price * (1 + joueur.prudence * 0.05));
+      if (joueur.money >= miseActuelle + 1000 && miseActuelle + 1000 <= maxIA && dernierEncherisseur !== idxJ) {
+        miseActuelle += 1000;
+        dernierEncherisseur = idxJ;
+        toursSansEnchere = 0;
+        logEvent('INFO', joueur.name + ' enchérit à ' + fmt(miseActuelle));
+        await sleep(400);
+      } else {
+        toursSansEnchere++;
+      }
+      encherisseurIdx++;
+      continue;
+    }
+
+    // Joueur humain local : on lui demande
+    if (!joueur.isRemote && !WS.isClient) {
+      var html = '<h2>🔨 Enchère : ' + propriete.name + '</h2>' +
+        '<p>Mise actuelle : <b style="color:#ffd700;font-size:20px">' + fmt(miseActuelle) + '</b></p>' +
+        '<p>Votre argent : <b>' + fmt(joueur.money) + '</b></p>';
+      if (dernierEncherisseur === idxJ) {
+        html += '<p style="color:#7CFC00">Vous êtes le plus offrant.</p>';
+      }
+      var choix = await showModal(html, [
+        { label: 'Enchérir +1 000 €', value: 'bid', cls: 'primary' },
+        { label: 'Se retirer', value: 'pass', cls: 'ghost' }
+      ]);
+      if (choix === 'bid' && joueur.money >= miseActuelle + 1000 && dernierEncherisseur !== idxJ) {
+        miseActuelle += 1000;
+        dernierEncherisseur = idxJ;
+        toursSansEnchere = 0;
+        playDingSound();
+      } else {
+        toursSansEnchere++;
+      }
+      encherisseurIdx++;
+      continue;
+    }
+
+    // Joueur distant : on attend une action WS (non implémenté pour l'instant)
+    toursSansEnchere++;
+    encherisseurIdx++;
+  }
+
+  // Attribution
+  if (dernierEncherisseur !== null && S.players[dernierEncherisseur]) {
+    var gagnant = S.players[dernierEncherisseur];
+    gagnant.money -= miseActuelle;
+    propriete.owner = dernierEncherisseur;
+    propriete.filiales = 0;
+    propriete.hypotheque = false;
+    playBuySound();
+    await showMoney(-miseActuelle, 'Enchère gagnée : ' + propriete.name);
+    logEvent('INFO', gagnant.name + ' remporte ' + propriete.name + ' pour ' + fmt(miseActuelle));
+    await showModal(
+      '<h2>🏆 Enchère remportée</h2><p><b>' + gagnant.name + '</b> obtient <b>' + propriete.name + '</b> pour <b>' + fmt(miseActuelle) + '</b>.</p>',
+      [{ label: 'OK', value: 'ok', cls: 'primary' }]
+    );
+  } else {
+    logEvent('INFO', 'Enchère pour ' + propriete.name + ' : personne ne s\'est manifesté.');
+    await showModal(
+      '<h2>🔨 Enchère terminée</h2><p>Personne n\'a enchéri pour <b>' + propriete.name + '</b>. La propriété reste libre.</p>',
+      [{ label: 'OK', value: 'ok', cls: 'primary' }]
+    );
+  }
+
+  refreshBoard();
+  if (WS.isHost) broadcastState();
+}
+  async function traiterAtterrissage(p,cell){
   var idx=S.players.indexOf(p);
   if(cell.type==='property'&&cell.owner==null&&p.money>=cell.price){
     p.money-=cell.price;cell.owner=idx;
